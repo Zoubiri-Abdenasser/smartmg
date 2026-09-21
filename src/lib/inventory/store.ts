@@ -6,7 +6,7 @@ import type {
   PurchaseOrder,
   PurchaseOrderItem,
 } from './types'
-import * as repo from '../db/repository'
+import { api } from '../api/client'
 
 interface AppStore {
   products: Product[]
@@ -15,36 +15,31 @@ interface AppStore {
   purchaseOrders: PurchaseOrder[]
   loading: boolean
   ready: boolean
+  error: string | null
 
-  /** تحميل كل البيانات من IndexedDB */
   hydrate: () => Promise<void>
   refresh: () => Promise<void>
 
-  // Products
   addProduct: (data: Omit<Product, 'id' | 'createdAt' | 'updatedAt' | 'archived'>) => Promise<void>
   updateProduct: (id: string, data: Partial<Product>) => Promise<void>
   archiveProduct: (id: string) => Promise<void>
 
-  // Suppliers
   addSupplier: (data: Omit<Supplier, 'id' | 'createdAt'>) => Promise<void>
   updateSupplier: (id: string, data: Partial<Supplier>) => Promise<void>
   deleteSupplier: (id: string) => Promise<void>
 
-  // Movements
   recordSale: (productId: string, quantity: number, date?: string, note?: string) => Promise<void>
   recordPurchase: (productId: string, quantity: number, date?: string, note?: string) => Promise<void>
   recordAdjustment: (productId: string, newQuantity: number, note?: string) => Promise<void>
 
-  // Purchase Orders
   createPurchaseOrder: (supplierId: string, items: PurchaseOrderItem[], note?: string) => Promise<string>
   approvePurchaseOrder: (id: string) => Promise<void>
   cancelPurchaseOrder: (id: string) => Promise<void>
   receivePurchaseOrder: (id: string) => Promise<void>
   updateOrderItemQty: (orderId: string, productId: string, quantity: number) => Promise<void>
 
-  // Data management
   exportData: () => Promise<object>
-  importData: (data: Parameters<typeof repo.importAllData>[0]) => Promise<void>
+  importData: (_data: unknown) => Promise<void>
   clearAllData: () => Promise<void>
 }
 
@@ -55,17 +50,24 @@ export const useAppStore = create<AppStore>((set, get) => ({
   purchaseOrders: [],
   loading: false,
   ready: false,
+  error: null,
 
   hydrate: async () => {
-    set({ loading: true })
+    set({ loading: true, error: null })
     try {
-      const [products, suppliers, movements, purchaseOrders] = await Promise.all([
-        repo.getAllProducts(true),
-        repo.getAllSuppliers(),
-        repo.getAllMovements(),
-        repo.getAllPurchaseOrders(),
-      ])
-      set({ products, suppliers, movements, purchaseOrders, ready: true })
+      const data = await api.bootstrap()
+      set({
+        products: data.products,
+        suppliers: data.suppliers,
+        movements: data.movements,
+        purchaseOrders: data.purchaseOrders,
+        ready: true,
+      })
+    } catch (e) {
+      set({
+        error: e instanceof Error ? e.message : 'فشل الاتصال بالخادم',
+        ready: true,
+      })
     } finally {
       set({ loading: false })
     }
@@ -76,87 +78,80 @@ export const useAppStore = create<AppStore>((set, get) => ({
   },
 
   addProduct: async (data) => {
-    await repo.addProduct(data)
+    await api.addProduct(data)
     await get().refresh()
   },
 
   updateProduct: async (id, data) => {
-    await repo.updateProduct(id, data)
+    await api.updateProduct(id, data)
     await get().refresh()
   },
 
   archiveProduct: async (id) => {
-    await repo.archiveProduct(id)
+    await api.updateProduct(id, { archived: true })
     await get().refresh()
   },
 
   addSupplier: async (data) => {
-    await repo.addSupplier(data)
+    await api.addSupplier(data)
     await get().refresh()
   },
 
   updateSupplier: async (id, data) => {
-    await repo.updateSupplier(id, data)
+    await api.updateSupplier(id, data)
     await get().refresh()
   },
 
   deleteSupplier: async (id) => {
-    await repo.deleteSupplier(id)
+    await api.deleteSupplier(id)
     await get().refresh()
   },
 
   recordSale: async (productId, quantity, date, note) => {
-    await repo.recordSale(productId, quantity, date, note)
+    await api.recordSale({ productId, quantity, date, note })
     await get().refresh()
   },
 
   recordPurchase: async (productId, quantity, date, note) => {
-    await repo.recordPurchase(productId, quantity, date, note)
+    await api.recordPurchase({ productId, quantity, date, note })
     await get().refresh()
   },
 
   recordAdjustment: async (productId, newQuantity, note) => {
-    await repo.recordAdjustment(productId, newQuantity, note)
+    await api.recordAdjustment({ productId, newQuantity, note })
     await get().refresh()
   },
 
   createPurchaseOrder: async (supplierId, items, note) => {
-    const order = await repo.createPurchaseOrder(supplierId, items, note)
+    const order = await api.createPurchaseOrder({ supplierId, items, note })
     await get().refresh()
     return order.id
   },
 
   approvePurchaseOrder: async (id) => {
-    await repo.approvePurchaseOrder(id)
+    await api.setPOStatus(id, 'approved')
     await get().refresh()
   },
 
   cancelPurchaseOrder: async (id) => {
-    await repo.cancelPurchaseOrder(id)
+    await api.setPOStatus(id, 'cancelled')
     await get().refresh()
   },
 
   receivePurchaseOrder: async (id) => {
-    await repo.receivePurchaseOrder(id)
+    await api.setPOStatus(id, 'received')
     await get().refresh()
   },
 
-  updateOrderItemQty: async (orderId, productId, quantity) => {
-    await repo.updateOrderItemQty(orderId, productId, quantity)
-    await get().refresh()
-  },
+  updateOrderItemQty: async () => {},
 
-  exportData: async () => {
-    return repo.exportAllData()
-  },
+  exportData: async () => api.bootstrap(),
 
-  importData: async (data) => {
-    await repo.importAllData(data)
-    await get().refresh()
+  importData: async () => {
+    throw new Error('الاستيراد غير متاح مع قاعدة PostgreSQL')
   },
 
   clearAllData: async () => {
-    await repo.clearAllData()
-    await get().refresh()
+    throw new Error('حذف الكل غير متاح من الواجهة مع قاعدة سحابية')
   },
 }))

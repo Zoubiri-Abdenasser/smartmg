@@ -31,7 +31,7 @@ export function LandingPage() {
         <div className="text-center mb-16">
           <div className="inline-flex items-center gap-2 rounded-full bg-brand-100 text-brand-700 px-4 py-1.5 text-sm font-medium mb-6">
             <Database className="h-4 w-4" />
-            قاعدة بيانات محلية · بدون بيانات تجريبية
+            PostgreSQL على السحابة
           </div>
           <h1 className="text-3xl lg:text-5xl font-extrabold text-slate-900 mb-4 leading-tight">
             إدارة المخزون الذكي
@@ -65,7 +65,7 @@ export function LandingPage() {
         </div>
 
         <p className="text-center text-sm text-slate-400">
-          البيانات تُحفظ في قاعدة IndexedDB على جهازك · تصدير واستيراد متاحان
+          البيانات تُحفظ في PostgreSQL على Render
         </p>
       </div>
     </div>

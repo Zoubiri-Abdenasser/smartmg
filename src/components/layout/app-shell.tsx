@@ -83,7 +83,7 @@ export function AppLayout() {
       <aside className="hidden lg:flex w-64 flex-col border-l border-slate-200 bg-white">
         <div className="p-5 border-b border-slate-100">
           <h1 className="text-lg font-bold text-brand-700">إدارة المخزون الذكي</h1>
-          <p className="text-xs text-slate-500 mt-1">IndexedDB · دينار جزائري</p>
+          <p className="text-xs text-slate-500 mt-1">PostgreSQL · دينار جزائري</p>
         </div>
         <nav className="flex-1 p-3 space-y-1">
           {navItems.map((item) => {
